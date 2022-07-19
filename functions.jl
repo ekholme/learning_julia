@@ -54,3 +54,59 @@ ForwardDiff.gradient(f₂, [1, 2, 3])
 
 #resume at section 4.4 of https://computationalthinking.mit.edu/Spring21/transformations_and_autodiff/
 #and watch the autodiff video
+
+# Anonymous/Lambda Functions
+# we can write anonymous functions in Julia as follows:
+f3 = x -> x^2
+
+f3(2)
+
+# Duck Typing
+f(x) = x^2
+
+#f will work on a matrix bc squaring a matrix is well-defined in math
+A = rand(3, 3)
+f(A)
+
+#but it won't work on a vector
+v = rand(3)
+f(v)
+
+# Mutating Functions
+# by convention, functions followed by ! alter their contents and functions lacking ! do no
+v = [3, 5, 2]
+
+sort(v)
+
+v
+
+#but then this will sort v in place
+sort!(v)
+
+v
+
+# Broadcasting
+# by placing a . between any function name and its argument list, we tell that function to be
+# broadcast over the elements of the input objects
+
+#let's define a new matrix
+A = [i + 3*j for j in 0:2, i in 1:3]
+
+#recall that f(A) = A^2 = A*A
+f(A)
+
+#but f.(A) will square each element
+f.(A)
+
+#this means that for a vector, v, f.(v) is defined even though f(v) is not
+v = [1, 2, 3]
+f.(v)
+
+# misc
+x = 1.0001
+y = 1.0
+
+x == y 
+y ≈ y
+# ≈ (i.e. \approx ) is defined as a mathematical operator, which is pretty dope
+
