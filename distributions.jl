@@ -4,6 +4,9 @@ using Distributions, Random
 Random.seed!(0408)
 d_n = Distributions.Normal()
 
+#we can find out what field names are appropriate for a given distribution
+fieldnames(Normal)
+
 #and we can see that it's normal
 mean(d_n)
 std(d_n)
@@ -16,6 +19,7 @@ a = Distributions.Bernoulli()
 b = Distributions.LogNormal()
 c = Distributions.Normal(1)
 d = Distributions.Normal(1, 2)
+
 
 tmp = s[1]
 
