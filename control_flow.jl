@@ -5,7 +5,7 @@
 x = 1
 y = 2
 
-z = (x < y) ? x : y
+z = (x > y) ? x : y
 z
 
 # the above is equivalent to
