@@ -27,3 +27,6 @@ describe(titanic0)
 
 #getting rows 1:4, all cols
 titanic0[1:4, :]
+
+#getting just the age column
+titanic0.Age[:]

@@ -1,0 +1,143 @@
+---
+title: "MLE Learning Out Loud"
+author: "EE"
+date: "7/27/2022"
+format:
+    html:
+        code-fold: true
+jupyter: julia-1.7
+---
+
+*ADD MAURY POVICH INTRO METAPHOR*
+
+Let's do some "learning out loud" with maximum likelihood estimation (MLE)
+
+```{julia}
+using Distributions
+using CairoMakie
+using Random
+```
+
+# Case 1: Fitting a Normal Distribution
+
+This is the simplest case. First, we're going to generate some sample data from a normal distribution with \mu = 0 and \sigma = 1
+
+```{julia}
+Random.seed!(0408)
+s = rand(Normal(), 10000)
+
+```
+
+Then we'll generate a bunch of normal distributions with various means and standard deviations
+
+```{julia}
+μs = collect(-2.0:2.0)
+σs = [0.5:0.5:2;]
+
+ds = []
+
+for i = μs, j = σs
+    d = Normal(i, j)
+    push!(ds, d)
+end
+
+```
+
+So our task now is going to be to determine the likelihood of each distribution (defined with a given set a parameters) given our data, *s*, that we've drawn from a normal distribution with \mu = 0 and @s = 1
+
+To do this, we use the probability density function of our normal distribution to determine the likelihood of the parameters for any given observation. Fortunately, Julia (and other languages) have tools that can help us do this without having to write out the entire equation by hand. I'll start with the "manual" version, though, just to make sure I get it before moving on
+
+*add here actual equation*
+
+Let's take a look at the first observation and the first distribution we defined:
+
+The first value in our sample is:
+```{julia}
+s[1]
+```
+
+And the first distribution we'll look at is
+```{julia}
+ds[1]
+```
+
+And if we look at the pdf of this, we get:
+```{julia}
+pdf(ds[1], s[1])
+```
+
+I'm not a statistician (hence these learning posts), but my understanding of this is that it generally represents the "fit" of the distribution (and its parameters) to the given sample/data point. These values will be bound between 0 and 1, since they're likelihoods.
+
+The next step is to convert this to a log scale, since logging allows us to sum things rather than multiply them (which we're gonna do soon).
+
+```{julia}
+logpdf(ds[1], s[1])
+#same as log(pdf(ds[1], s[]1))
+```
+
+So this gives us the log likelihood of a given data point. But now we need to do this for all of the data points in our sample to determine the "fit" of the distribution to our whole sample
+
+```{julia}
+sum(logpdf.(ds[1], s))
+```
+
+The above is the same as:
+
+```{julia}
+loglikelihood(ds[1], s)
+```
+
+So this gives us the likelihood of a distribution (normal, in this case, defined by parameters \mu and \sigma) given our sample. The goal then is to pick the *best* distribution, which we can do by *maximizing the likelihood*.
+
+Or, apparently, a lot of people minimize the negative loglikelihood, which is the same thing (and called logloss, I guess).
+
+So let's do this for all of the distributions we specified earlier
+
+```{julia}
+lls = []
+
+for i in ds
+    res = -loglikelihood(i, s)
+    push!(lls, res)
+end
+
+lls = Float64.(lls)
+```
+
+
+And then we can plot this
+
+```{julia}
+ind = collect(1.0:length(ds))
+
+lines(ind, lls)
+```
+
+Notice that our negative log likelihood is minimized in the 10th distribution, so let's take a look at what that is
+
+```{julia}
+ds[10]
+```
+
+This makes sense! This was the distribution that we drew our samples from!
+
+If we want to do this without looking at a plot, we can apparently do this:
+
+```{julia}
+#get the index of the minimum value in lls
+min_ll = findall(lls .== minimum(lls))
+
+#get the distribution at this index
+ds[min_ll]
+
+```
+
+So this tells us that -- of the distributions we tested! -- the most likely distribution given our data is a normal distribution with mean of 0 and standard deviation of 1. This doesn't necessarily mean that this \mu = 0 and \sigma = 1 are the *optimal* parameters. There could be better parameters that we didn't test, and so in the future we'd want to probably use some sort of optimizing functions that can do all of the math for us.
+
+# Case 2: Simple Linear Regression
+
+*RESUME HERE*
+
+```{julia}
+
+```
