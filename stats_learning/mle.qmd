@@ -16,6 +16,9 @@ Let's do some "learning out loud" with maximum likelihood estimation (MLE)
 using Distributions
 using CairoMakie
 using Random
+using Optim
+using GLM
+using DataFrames
 ```
 
 # Case 1: Fitting a Normal Distribution
@@ -136,8 +139,83 @@ So this tells us that -- of the distributions we tested! -- the most likely dist
 
 # Case 2: Simple Linear Regression
 
-*RESUME HERE*
+So now let's move on a bit and try a simple linear regression.
 
 ```{julia}
+x = collect(0:.1:10)
 
+ϵ = rand(Normal(0, 1), length(x))
+
+f(x) = 0.5 + 2*x
+
+y = f.(x) .+ ϵ
+```
+
+And then we can plot this
+
+```{julia}
+scatter(x, y)
+```
+
+Another way to think about the above is that we expect a linear relationship between x and y in the form of
+
+y = \alpha + \beta*x + \epsilon
+
+We need to estimate alpha and beta in a way that optimally fits the line above, and we do this with maximum likelihood
+
+```{julia}
+function max_ll_reg(x, y, params)
+
+    α = params[1]
+    β = params[2]
+    σ = params[3]
+
+    ŷ = α .+ x.*β
+
+    resids = y .- ŷ
+
+    d = Normal(0, σ)
+
+    ll = -loglikelihood(d, resids)
+    
+    return ll
+
+end
+```
+
+And let's see how this works
+
+```{julia}
+yy = max_ll_reg(x, y, .5, 2, 1)
+```
+
+The next step then is to optimize this.
+
+```{julia}
+res = optimize(params -> max_ll_reg(x, y, params), [0.0, 1.0, 1.0])
+```
+
+And then this will give us the maximum likelihood solution for our regression equation
+
+```{julia}
+Optim.minimizer(res)
+```
+
+We can check this by fitting the model with the `GLM` package
+
+```{julia}
+data = DataFrame(X = x, Y = y)
+
+ols_res = lm(@formula(Y ~ X), data)
+```
+
+et voila, we get the same \alpha and \beta
+
+Note that Julia also lets us solve the equation via the `\` operator:
+
+```{julia}
+#we have to include a column of 1s in the matrix to get the intercept
+xmat = hcat(ones(length(x)), x)
+
+xmat \ y
 ```
