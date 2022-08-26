@@ -14,7 +14,7 @@ jupyter: julia-1.7
 
 # Maury Povich as a metaphor for maximum likelihood estimation
 
-So this obviously isn't 100% mathematically rigorous, but based on my (limited) understanding of maximum likelihood estimation (MLE), I think it's kinda like the Maury Povich show...
+So this obviously isn't 100% mathematically rigorous, but based on my (limited) understanding of maximum likelihood estimation (MLE), I think it's kind of like the Maury Povich show...
 
 Back when I was in high school, some of my friends and I used to eat lunch in our track coach's classroom and watch the Maury Povich show...**RESUME HERE**
 
