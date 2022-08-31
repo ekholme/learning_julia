@@ -1,9 +1,9 @@
 ---
 title: "MLE Learning Out Loud"
 description: |
-    Learning maximum likelihood estimation by fitting models by hand (in Julia!)
+    Learning maximum likelihood estimation by fitting models 'by hand' (in Julia!)
 author: "EE"
-date: "7/27/2022"
+date: "2022-08-30"
 format:
     html:
         code-fold: false
@@ -30,7 +30,7 @@ Which would in turn elicit animated reactions from the audience, the mother, and
 
 **So how's this like maximum likelihood estimation?**
 
-So the logic of maximum likelihood estimation (MLE) is that, given a set of data, we can estimate the likelihood of a distribution parameterized by a given set of parameters. Imagine we have a bunch of measures of adult heights, and we assume that height is normally distributed. We know that a normal distribution is defined by its mean and its standard deviation. And so using our set of data, we can estimate the likelihood of any combination of mean and standard deviation (i.e. any set of parameters) given this data. And the parameters with the maximum likelihood are the "best" given our set of data. We'll walk through this with examples later.
+So my understanding of the logic of maximum likelihood estimation (MLE) is that, given a set of data, we can estimate the likelihood of a distribution parameterized by a given set of parameters. Imagine we have a bunch of measures of adult heights, and we assume that height is normally distributed. We know that a normal distribution is defined by its mean and its standard deviation. And so using our set of data, we can estimate the likelihood of any combination of mean and standard deviation (i.e. any set of parameters) given this data. And the parameters with the maximum likelihood are the "best" given our set of data. We'll walk through this with examples later.
 
 What matters here though is that the actual number describing the likelihood (or the log-likelihood, more likely) doesn't really matter. It's not arbitrary, but it'll differ depending upon how many observations are in your dataset, the distribution you're using, etc. The values of the (log)likelihood relative to one another are what matters. And in this respect I'm reminded of Maury's paternity tests.
 
@@ -38,7 +38,9 @@ It doesn't matter if a guest on the show says he's 100% sure the baby isn't his.
 
 # Some Examples
 
-Now that we're all set with our Maury analogy, let's walk through a few examples.
+I'm not 100% sure the Maury analogy actually holds up, but whatever, let's work through some examples
+
+First we'll load some necessary packages.
 
 ```{julia}
 using Distributions
@@ -100,7 +102,7 @@ And if we look at the pdf of this, we get:
 pdf(ds[1], s[1])
 ```
 
-I'm not a statistician (hence these learning posts), but my understanding of this is that it generally represents the "fit" of the distribution (and its parameters) to the given sample/data point. These values will be bound between 0 and 1, since they're likelihoods.
+I'm not a statistician (hence these learning posts), but my understanding of this is that it generally represents the "fit" of the distribution (and its parameters) to the given sample/data point. These values will be bound between 0 and 1, since they're likelihoods, with higher values indicating better fit/higher likelihood.
 
 The next step is to convert this to a log scale, since logging allows us to sum things rather than multiply them (which we're gonna do soon).
 
@@ -109,13 +111,13 @@ logpdf(ds[1], s[1])
 #same as log(pdf(ds[1], s[]1))
 ```
 
-So this gives us the log likelihood of a given data point. But now we need to do this for all of the data points in our sample to determine the "fit" of the distribution to our whole sample
+So this gives us the log likelihood of a given data point. But now we need to do this for all of the data points in our sample to determine the "fit"/likelihood of the distribution to our whole sample.
 
 ```{julia}
 sum(logpdf.(ds[1], s))
 ```
 
-The above is the same as:
+Apparently `Distributions.jl` gives us a helper for this via `loglikelihood`, so the above is the same as:
 
 ```{julia}
 loglikelihood(ds[1], s)
@@ -123,7 +125,7 @@ loglikelihood(ds[1], s)
 
 So this gives us the (log)likelihood of a distribution (normal, in this case, defined by parameters $\mu$ and $\sigma$) given our sample. That is, the relatively plausibility of the parameters given our data. The goal then is to pick the *best* distribution/parameters, which we can do by *maximizing the likelihood*. In Maury terms, we want to find guy who's most sure that the baby isn't his.
 
-Or, apparently, a lot of people minimize the negative loglikelihood, which is the same thing (and called logloss, I guess).
+Or, apparently, it's more common to minimize the negative loglikelihood, which is the same thing (and called logloss, I guess).
 
 So let's do this for all of the distributions we specified earlier
 
@@ -139,7 +141,7 @@ lls = Float64.(lls)
 ```
 
 
-And then we can plot this
+And then we can plot the loglikelihoods we get:
 
 ```{julia}
 ind = collect(1.0:length(ds))
@@ -170,19 +172,23 @@ So this tells us that -- of the distributions we tested! -- the most likely dist
 
 # Case 2: Simple Linear Regression
 
-So now let's move on a bit and try a simple linear regression.
+So now let's move on a bit and try a simple linear regression. First we'll just generate some fake data and a "ground truth" function
 
 ```{julia}
+#generate some x values
 x = collect(0:.1:10)
 
+#generate error
 ϵ = rand(Normal(0, 1), length(x))
 
+#define a function relating x to y
 f(x) = 0.5 + 2*x
 
+#generate y as f(x) plus error
 y = f.(x) .+ ϵ
 ```
 
-And then we can plot this
+And then we can plot the x and y values we just created:
 
 ```{julia}
 CairoMakie.scatter(x, y)
@@ -192,7 +198,7 @@ Another way to think about the above is that we expect a linear relationship bet
 
 $y = \alpha + \beta x + \epsilon$
 
-We need to estimate alpha and beta in a way that optimally fits the line above, and we do this with maximum likelihood. We can take advantage of the fact that linear regression assumes that residuals are normally distributed with an expected value (mean) of 0, since this will provide as with a distribution we can try to parameterize optimally. Since the residuals are dependent upon the predicted values of y, and since the predicted values of y are dependent on the intercept ($\alpha$) and the coefficient ($\beta$), this will give us a way to estimate the terms in the regression line.
+We need to estimate alpha and beta in a way that optimally fits this line, and we can do this with maximum likelihood. We can take advantage of the fact that linear regression assumes that residuals are normally distributed with an expected value (mean) of 0, since this will provide as with a distribution we can try to parameterize optimally. Since the residuals are dependent upon the predicted values of y, and since the predicted values of y are dependent on the intercept ($\alpha$) and the coefficient ($\beta$), this will give us a way to estimate the terms in the regression line.
 
 $\sigma$ is not super important to us, but we still need to estimate it. We can estimate the loglikelihood of a given set of parameters using the function below.
 
@@ -242,7 +248,7 @@ data = DataFrame(X = x, Y = y)
 ols_res = lm(@formula(Y ~ X), data)
 ```
 
-et voila, we get the same $\alpha$ and $\beta$!
+et voila, we get the same $\alpha$ and $\beta$! The coefficients aren't exactly the same as the ones we specified when generating the data, but that's because of the error we introduced.
 
 It's maybe also worth nothing that Julia lets us solve the equation via the `\` operator, which apparently provides a shorthand for solving systems of linear equations:
 
@@ -297,7 +303,7 @@ end
 ```
 
 
-Then we can do the same thing as before -- provide some starting parameters (coefficients), and tell our super-smart optimizer function to give us the parameters that maximize the likelihood (or, really, that minimize the negative log-likelihood, which is the same thing).
+Then we can do the same thing as before -- provide some starting parameters (coefficients), and tell our super-smart optimizer function to give us the parameters that maximize the likelihood.
 
 ```{julia}
 start_params = [.4, .5, 1.5, 4.0, 1.0]
@@ -317,7 +323,7 @@ And we can check that these are returning the correct values
 𝐗 \ 𝐘
 ```
 
-Alternatively, we could have used a joint pdf for the normal distribution:
+Alternatively, we could have written out the joint pdf for the normal distribution by hand, like below.
 
 First we can define this function: 
 ```{julia}
