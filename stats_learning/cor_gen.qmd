@@ -1,0 +1,69 @@
+---
+title: "Generating Data with a Given Correlation"
+description: |
+    Using Julia to generate a dataset with a given correlation
+author: "EE"
+date: "2022-09-8"
+format:
+    html:
+        code-fold: false
+jupyter: julia-1.7
+---
+
+This is going to be a short one, but I saw a comment on Twitter recently about an interview question where someone was asked to generate a dataset with variables X and Y that are correlated at *r* = .8. So I figured I'd write out some code that does this as a way to practice in Julia a little bit more.
+
+First we load our packages
+
+```{julia}
+using Statistics
+using Distributions
+using CairoMakie #for plotting
+using Random #to set a seed
+
+Random.seed!(0408)
+```
+
+The approach here is going to be to define a covariance (correlation) matrix and a vector of means, then define a multivariate normal distribution parameterized by these things. We'll then use this distribution to generate our data.
+
+First we'll define $\Sigma$, which is our covariance matrix. Since we're generating a dataset with only 2 variables, this will be a 2x2 matrix, where the diagonals will be 1 and the off-diagonals will be .8, which is the correlation we want between X and Y.
+
+
+```{julia}
+#define our covariance matrix
+Σ = [[1.0, .8] [.8, 1.0]]
+```
+
+Then we'll define a mean vector. This will be a 2-element vector (one for each variable), but we don't actually care what the values are here, so let's just make them 0.
+
+```{julia}
+#define a mean vector
+#we don't actually care what these values are, though
+μ = zeros(2)
+```
+
+Now we can define a distribution given $\Sigma$ and $\mu$
+
+```{julia}
+d = Distributions.MvNormal(μ, Σ)
+```
+
+And then we can draw a sample from this distribution
+
+```{julia}
+s = rand(d, 200)
+```
+
+To confirm this works like expected, we can plot the sample
+
+```{julia}
+CairoMakie.scatter(s)
+```
+
+It looks like a .8 correlation to me. But to do a final check, we can get the correlation matrix of our sample.
+
+```{julia}
+#we need to transpose the matrix from 2x200 to 200x2, hence s' instead of s
+cor(s')
+```
+
+Close enough. Our correlation won't be *exactly* equal to .8 using this approach since we're sampling from a distribution, but there's really no difference (imo) between a .77 correlation and a .80 correlation.
