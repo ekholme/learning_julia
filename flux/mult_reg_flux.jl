@@ -26,7 +26,7 @@ mod = Dense(3 => 1)
 loss(x, y) = Flux.Losses.mse(mod(x)', y)
 
 #define optimizer
-opt = Descent(.05)
+opt = Descent(.01)
 
 #define data
 data = [(X', y)]
@@ -43,7 +43,7 @@ train!(loss, parameters, data, opt)
 loss(X', y)
 parameters
 
-for epoch in 1:2000
+for epoch in 1:3000
     train!(loss, parameters, data, opt)
 end
 parameters
