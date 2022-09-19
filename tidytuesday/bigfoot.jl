@@ -1,6 +1,7 @@
 using DataFrames
 using CSV
 using CairoMakie
+using Chain
 
 #see https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-09-13
 
@@ -18,6 +19,9 @@ show(names(bigfoot))
 #let's look at the dates
 first(bigfoot.:date, 5)
 
+#and let's do a little describe of each column
+describe(bigfoot)
+
 #so a decent amount of missing data here
 #let's see what proportion is missing
 
@@ -27,8 +31,6 @@ sum(ismissing.(bigfoot.:date)) / length(bigfoot.:date)
 function sum_miss(x::Symbol)
     sum(ismissing.(bigfoot[:, x])) / length(bigfoot[:, x])
 end
-
-sum_miss(nms[1])
 
 #get all column names as symbols
 nms = propertynames(bigfoot)
@@ -46,9 +48,26 @@ miss_df = DataFrame(
 )
 
 #and plot the above
-#need to figure out how the axis stuff works
 barplot(
     1:nrow(miss_df),
-    miss_df.miss_pct
-    #axis = (xticks = (1:nrow(miss_df), String.(nms)))
+    miss_df.miss_pct,
+    axis = (
+        yticks = (1:28, String.(nms)),
+        title = "Missing Plot"
+        ),
+    direction = :x,
+    bar_labels = :y,
+    flip_labels_at = .5,
 )
+
+#what states are bigfoot sightings most common in?
+state_counts = sort!(combine(groupby(bigfoot, [:state]), nrow => :count), [:count], rev = true)
+
+#another way using chain
+state_counts2 = @chain bigfoot begin
+    groupby(:state)
+    combine(nrow => :count)
+    sort(:count, rev = true)
+end
+
+#resume by plotting here
