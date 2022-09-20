@@ -49,3 +49,42 @@ end
 parameters
 
 loss(X', y)
+
+# Another way to define the model --------------
+
+function f₂(x)
+    x*β
+end
+
+#initialize beta
+β = [.1, .1, .1, .1]
+
+#mse
+function my_loss(x, y)
+    ŷ = f₂(x)
+    sum((ŷ .- y).^2)
+end
+
+#we'll use the same optimizer as before, but let's just redfine here
+opt2 = Descent(.01)
+
+#set parameters as the betas in our model
+θ = Flux.params([β])
+
+#set up data
+data2 = [(X_ones, y)]
+
+
+
+#train model
+train!(my_loss, θ, data2, opt2)
+
+θ
+
+for epoch in 1:3000
+    train!(my_loss, θ, data2, opt2)
+end
+
+θ
+#so this works, but see here for some explanation why I'm getting NaN parameter values
+#https://discourse.julialang.org/t/how-come-flux-jls-network-parameters-go-to-nan/16439/3
