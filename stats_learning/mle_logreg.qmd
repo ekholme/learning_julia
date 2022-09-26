@@ -27,6 +27,7 @@ using Distributions #for the Bernoulli distributions
 using Random #to set a seed
 using Optim #to do the acutal optimizing
 using StatsFuns #for the logistic function, although this isn't strictly necessary since we'll write our own
+using Statistics #mean and std
 using RDatasets #to get data
 Random.seed!(0408)
 ```
@@ -39,53 +40,63 @@ After loading the data, we'll pull out the default variable, dummy code it, and 
 
 ```{julia}
 data = RDatasets.dataset("ISLR", "Default")
+
 y = [r.Default == "Yes" ? 1 : 0 for r in eachrow(data)]
+
 X = data[:, [:Balance, :Income]]
 ```
 
-*RESUME HERE*
+Next, we'll z_score the predictor variables, convert them to a matrix, and append a column vector of ones to the matrix (so we can estimate the intercept). The `mapcols()` function from `DataFrames.jl` will apply the z_score function to all of the columns in X, which is actually only 2 in this case.
 
-Next, we'll write a logistic function that we can use to generate y values, given **X** and $\beta$
-
-```{julia}
-my_logistic(x) = exp.(x*b) ./ (1 .+ exp.(x*b))
-```
-
-One thing to keep in mind (and that always gets me!) is that, unlike R, Julia doesn't vectorize most operations by default, so you need to "broadcast" them using .  We can see this above like `.+`, which you can think of as like little compact for loops.
-
-I learned that the above is how you take a real-valued number and transform it so that it's in the range [0, 1]. I wrote it out by hand, because I think it helps me remember/learn, but you could equivalently use the `logistic()` function in the StatsFuns package:
+First we'll define a z-score function
 
 ```{julia}
-#| eval: false
-logistic.(X*β)
+function z_score(x)
+    u = mean(x)
+    s = std(x)
+
+    res = Float64[]
+    for i in 1:lastindex(x)
+        tmp = (x[i] - u) / s
+        push!(res, tmp)
+    end
+
+    return res
+end
 ```
 
-And now we can generate our y values:
+And then we'll actually apply it.
 
 ```{julia}
-#y = Integer.(round.(my_logistic(X, β)))
-y = Integer.(round.(logistic.(X*β)))
+Xz = hcat(ones(length(y)), Matrix(mapcols(z_score, X)))
 ```
 
-Since the outcome of `my_logistic()` will be a decimal, and logistic regression is used to model successes and failures, we want y to be either 0 or 1, not some number in between. So we'll need to round the output of `my_logistic()` to satisfy this assumption. We'll also need to cast it to be an integer.
+# Define a Logistic Function
+
+Next, we'll write a logistic function that will implement the logistic transformation. This is built into the `StatsFuns.jl` package, but I want to write it out by hand to reinforce what it is. We'll use this to predict y values with a given input (which will actually be X*$\beta$)
+
+```{julia}
+my_logistic(x) = exp(x) / (1 + exp(x))
+```
 
 # Define a Maximum Likelihood Estimator
 
 Now that we have some data, we can write a function that uses maximum likelihood estimation to give us the best $\beta$ parameters for our given **X** and y. If you want to brush up on maximum likelihood, you can read my previous "learning out loud" post (INSERT LINK), or you can probably find materials written by someone who knows way more than I do. Either way, I'm not going to recap what MLE is here.
 
-Let's define our function that we'll use to estimate $\beta$
+Let's define our function that we'll use to estimate $\beta$. The important thing to keep in mind is that the return value of this function isn't the $\beta$ values, but rather the negative log likelihood, since this is what we we want to optimize.
 
 ```{julia}
 function ml_logreg(x, y, b)
-    #ŷ = my_logistic(x*b)
-    ŷ = logistic.(x * b)
+
+    ŷ = my_logistic.(x*b)
     res = Float64[]
-    # for i in 1:lastindex(ŷ)
-    #     push!(res, logpdf.(Bernoulli(ŷ[i]), y[i]))
-    # end
-    # ret = -sum(res)
-    #all of the above is the same as:
-    ret = sum(-1 .* (log.(ŷ) .* y .+ (log.(1 .- ŷ) .* (1 .- y))))
+
+    for i in 1:lastindex(y)
+        push!(res, logpdf(Bernoulli(ŷ[i]), y[i]))
+    end
+
+    ret = -sum(res)
+
     return ret
 end
 ```
@@ -121,28 +132,36 @@ logpdf(Bernoulli(.99), 1)
 
 And inversely, you can imagine that if the outcome were 0, we'd want our predicted success rate to be very low.
 
-Returning to our `ml_logreg()` function, what we're doing then is applying this logic to all of our $ŷ$ and corresponding *y* values (i.e. we're getting the likelihood of *y* for a given ŷ), and then we're creating a vector with all of these likelihoods -- that's what the `push!(...)` notation is doing -- pushing these likelihoods to the empty Float vector we created.
+Returning to our `ml_logreg()` function, what we're doing then is applying this logic to all of our $ŷ$ and corresponding *y* values (i.e. we're getting the likelihood of *y* for a given $ŷ$), and then we're creating a vector with all of these likelihoods -- that's what the `push!(...)` notation is doing -- pushing these likelihoods to the empty float vector we created.
 
 Finally, we're summing all of our likelihoods and then multiplying the result by negative one, since the optimizer we're using actually wants to *minimize* a loss function rather than *maximize* a loss function.
 
 We can run this function by providing any X, y, and $\beta$, and it'll give us back a negative loglikelihood -- the negative sum of all of the individual likelihoods.
 
 ```{julia}
-ml_logreg(X, y, β)
+#just some arbitrary numbers to test the function with
+start_vals = [.1, .1, .1]
+
+ml_logreg(Xz, y, start_vals)
 ```
 
 # Optimize $\beta$
 
-So the above gives us the likelihood for a starting value of $\beta$, but we want to find the *best* values of $\beta$. To do that, we can optimize the function
+So the above gives us the likelihood for a starting value of $\beta$, but we want to find the *best* values of $\beta$. To do that, we can optimize the function. Like I said in my previous post, the optimizers are written by people much smarter than I am, so I'm just going to use that package rather than futz around with doing any, like, calculus by hand -- although maybe that's a topic for a later learning out loud post.
 
 ```{julia}
-res = optimize(params -> ml_logreg(X, y, params), β)
+res = optimize(b -> ml_logreg(Xz, y, b), start_vals)
 ```
+
+And then we can get the $\beta$ coefficients that minimize the loss function (i.e. that maximize the likelihood)
 
 ```{julia}
 Optim.minimizer(res)
 ```
 
+And just to confirm that we did this correctly, we can check our point estimates against what we'd get if we fit the model using the `GLM` package.
 ```{julia}
-logreg_res = glm(X, y, Binomial())
+logreg_res = glm(Xz, y, Binomial())
 ```
+
+Cool beans!
