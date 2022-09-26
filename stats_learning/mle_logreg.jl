@@ -1,56 +1,46 @@
-#an extension of my multiple regression learning, but with logistic regression
-
 using GLM
 using Distributions
 using Random
 using Optim
 using DataFrames
-using CairoMakie
-using StatsFuns
+using StatsBase
+using RDatasets
 
 Random.seed!(0408)
 
-#get X
-tmp = randn(100, 3)
-𝐗 = hcat(ones(100), tmp)
+data = RDatasets.dataset("ISLR", "Default")
 
-#get some seed betas to create data
-β = rand(Uniform(0, .5), 4)
+y = [r.Default == "Yes" ? 1 : 0 for r in eachrow(data)]
 
-#write a logistic function
-#same as logistic.(𝐗*β)
-f₁(x, b) = exp.(x*b) ./ (1 .+ exp.(x*b))
+X = data[:, [:Balance, :Income]]
 
-#generate y values
-y = Integer.(round.(f₁(𝐗, β)))
+Xz = hcat(ones(length(y)), Matrix(mapcols(zscore, X)))
 
-#define function
-function ml_logreg(x, y, β)
+my_logistic(x) = exp(x) / (1 + exp(x))
 
-    ŷ = logistic.(x * β)
+function ml_logreg(x, y, b)
 
+    ŷ = my_logistic.(x*b)
     res = Float64[]
 
-    for i in 1:lastindex(ŷ)
-        push!(res, logpdf.(Bernoulli(ŷ[i]), y[i]))
+    for i in 1:lastindex(y)
+        push!(res, logpdf(Bernoulli(ŷ[i]), y[i]))
     end
 
     ret = -sum(res)
 
-    #the above is the same as this:
-    #ll = sum(-1 .* (log.(ŷ) .* y .+ (log.(1 .- ŷ) .* (1 .- y))))
     return ret
 end
 
-#this will return the log-likelihood for the starting values of β
-test_run = ml_logreg(𝐗, y, β)
+start_vals = [.1, .1, .1]
 
-#optimize beta
-res = optimize(params -> ml_logreg(𝐗, y, params), β)
+tst = ml_logreg(Xz, y, start_vals)
 
-#extract the best beta values
-Optim.minimizer(res)
+#get true values
+true_res = glm(Xz, y, Binomial())
 
-#and if we check our work
-logreg_res = glm(𝐗, y, Binomial())
-#huzzah
+#estimate betas
+ests = optimize(b -> ml_logreg(Xz, y, b), start_vals)
+
+Optim.minimizer(ests)
+#so this works -- now just need to update blog writing
