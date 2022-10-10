@@ -35,6 +35,8 @@ res2 = @chain artists begin
 end
 #interesting that it's designers everywhere but DC
 
+#next -- make a map!
+
 # Extra ------
 #note -- don't need to do this anymore, since I read the data in correctly, but going to keep this here as reference
 
