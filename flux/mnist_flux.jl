@@ -36,5 +36,23 @@ y_tst = onehotbatch(y_tst, 0:9)
 
 #and create a dataloader
 train_data = DataLoader((data = x_train, label = y_train), batchsize = 128, shuffle = true)
+test_data = DataLoader((data = x_tst, label = y_tst), batchsize = 128, shuffle = true)
 
-#resume here -- see also p. 116ish of Deep Learning in R book
+#specifying the model
+#note that I can't run this at work bc aws is blocked, so I can't get the data
+model = Chain(
+    # 28x28 => 14x14
+    Conv((5, 5), 1=>8, pad=2, stride=2, relu),
+    # 14x14 => 7x7
+    Conv((3, 3), 8=>16, pad=1, stride=2, relu),
+    # 7x7 => 4x4
+    Conv((3, 3), 16=>32, pad=1, stride=2, relu),
+    # 4x4 => 2x2
+    Conv((3, 3), 32=>32, pad=1, stride=2, relu),
+    
+    # Average pooling on each width x height feature map
+    GlobalMeanPool(),
+    flatten,
+    
+    Dense(32, 10),
+)
