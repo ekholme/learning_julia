@@ -53,8 +53,14 @@ end
 #getting a list of stopwords
 stps = stopwords(Languages.English())
 
-#doesn't currently work but i'm getting closer
+#trying the stop word filter
+zz = dialogue_split.:dialogue_split[1:10]
+
+.!in.(zz, Ref(stps))
+
+#so this works -- we need to broadcast the !
+#also need to use Ref(), although I'm not sure why
 dialogue_no_stops = subset(
     dialogue_split,
-    :dialogue_split => x -> !in.(x, stps)
+    :dialogue_split => x -> .!in.(x, Ref(stps))
     )
