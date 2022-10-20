@@ -5,6 +5,7 @@ using CairoMakie
 using Chain
 using Dates
 using Languages
+using Unicode
 
 st_things = CSV.read(download("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-10-18/episodes.csv"), DataFrame)
 
@@ -40,6 +41,10 @@ dialogue_split = @chain dialogue_head begin
 end
 #boom
 
+function strip_specials(x)
+    strip(x, [',', ';', '.', '?', '!'])
+end
+
 dialogue_split = @chain dialogue_complete begin
     select(
         :season,
@@ -48,6 +53,8 @@ dialogue_split = @chain dialogue_complete begin
         :dialogue => ByRow(split) => :dialogue_split
     )
     flatten(:dialogue_split)
+    transform(:dialogue_split => ByRow(lowercase) => :dialogue_split)
+    transform(:dialogue_split => ByRow(strip_specials) => :dialogue_stripped)
 end
 
 #getting a list of stopwords
@@ -62,5 +69,32 @@ zz = dialogue_split.:dialogue_split[1:10]
 #also need to use Ref(), although I'm not sure why
 dialogue_no_stops = subset(
     dialogue_split,
-    :dialogue_split => x -> .!in.(x, Ref(stps))
+    :dialogue_stripped => x -> .!in.(x, Ref(stps))
     )
+
+#summarize by word
+top_100 = @chain dialogue_no_stops begin
+    groupby(:dialogue_stripped)
+    combine(nrow => :count)
+    sort(:count, rev = true)
+    first(100)
+end
+
+#and make a bar chart
+nms = (:a, :b, :c)
+vls = [1, 2, 3]
+
+yy = NamedTuple{nms}(vls)
+
+#getting there with this -- need to make it a tuple
+
+barplot(
+    1:nrow(top_100),
+    top_100.count,
+    axis = (
+        yticks = yt
+    ),
+    direction = :x,
+    bar_labels = :y,
+    flip_labels_at = .5,
+)
