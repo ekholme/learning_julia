@@ -5,7 +5,6 @@ using CairoMakie
 using Chain
 using Dates
 using Languages
-using Unicode
 
 st_things = CSV.read(download("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-10-18/episodes.csv"), DataFrame)
 
@@ -90,11 +89,8 @@ yy = NamedTuple{nms}(vls)
 
 barplot(
     1:nrow(top_100),
-    top_100.count,
-    axis = (
-        yticks = yt
-    ),
+    reverse(top_100.count),
     direction = :x,
-    bar_labels = :y,
-    flip_labels_at = .5,
+    #bar_labels = :y,
+    #flip_labels_at = .5,
 )

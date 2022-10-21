@@ -1,0 +1,207 @@
+---
+title: "Stranger Strings"
+description: |
+    Tokenizing and counting Stranger Things dialogue using Julia
+author: "EE"
+date: "2022-10-21"
+format:
+    html:
+        code-fold: false
+jupyter: julia-1.7
+---
+
+**NOTE TO SELF -- ADD TAGS TO YAML**
+
+# Setup and Examine Data
+
+```{julia}
+using CSV #for reading CSVs
+using DataFrames #dataframe utilities
+using Chain #chain macro, similar to R's pipe
+using Languages #for stopwords
+using CairoMakie #plotting
+```
+
+
+First, let's read the data in:
+
+```{julia}
+st_things_dialogue = CSV.read(download("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-10-18/stranger_things_all_dialogue.csv"), DataFrame);
+
+```
+
+And then we can look at the size of the dataframe:
+
+```{julia}
+size(st_things_dialogue)
+```
+
+As well as see the first few rows:
+
+```{julia}
+first(st_things_dialogue, 3)
+```
+
+So we can see that dialogue might be `missing` if the line is just stage directions. For our purposes here, let's just use the lines with dialogue. To do this, we can use the `dropmissing()` function and then pass in the Dataframe and the column we want to only keep complete cases of, which is `:dialogue` in this case. Note that Julia uses `:` to denote symbols.
+
+```{julia}
+dialogue_complete = dropmissing(st_things_dialogue, :dialogue)
+```
+
+# Reshape Data
+
+Cool, so this will get us just rows that actually have dialogue. But what we can see is that each row is a *line* of dialogue, whereas we actually want to tokenize this so that each row is a word.
+
+To do this, we can use the `split` function, which lets us split a string at whatever delimiter we provide. In this case, that's a space. For example:
+
+```{julia}
+split("a man a plan a canal panama", " ")
+```
+
+Or, using our actual data:
+
+```{julia}
+split(dialogue_complete.dialogue[1], " ")
+```
+
+So this gives us the first step of what we want to do in tokenizing the dialogue.
+
+Let's start putting this into a `chain`, which is similar to R's pipe concept. And apparently there are several different chains/pipes in Julia, but the `Chain.jl` package seems reasonable to me so let's just use that one.
+
+We can begin a chain operation with the `@chain` macro, then pass the dataframe name and a `begin` keyword. We then do all of our operations, then pass the `end` keyword. Like `tidyverse` functions in R, most of Julia's `DataFrame` functions expect a dataframe as the first argument, which makes them work well with chains.
+
+```{julia}
+df_split = @chain dialogue_complete begin
+    select(
+        :season,
+        :episode,
+        :line,
+        :dialogue => ByRow(x -> split(x, " ")) => :dialogue_split
+    )
+    end
+```
+
+Technically we don't *need* to chain anything above since we're just doing one operation (`select()`) right now, but we'll add more soon.
+
+One thing you might notice in the final line within `select()` is Julia's notation for "doing things" is `input_col => function => output_col`. In the case above, we're supplying an anonymous function (which is that x -> fun(x, ...)) syntax, and wrapping that in a special `ByRow()` function that facilitates broadcasting in dataframe operations.
+
+All that said, the above doesn't quite give us what we want if we look at the first two rows of output:
+
+```{julia}
+first(df_split, 2)
+```
+
+Our `dialogue_split` column is a vector of vectors. To get around this, we want to flatten the column so that each row contains a single word. The nice thing about our chain operation above is that we can just plunk the `flatten()` function right on the end to do this:
+
+```{julia}
+df_split = @chain dialogue_complete begin
+    select(
+        :season,
+        :episode,
+        :line,
+        :dialogue => ByRow(x -> split(x, " ")) => :dialogue_split
+    )
+    flatten(:dialogue_split)
+end
+```
+
+Better! Now let's check out the first 10 elements of our dialogue split column:
+
+```{julia}
+show(first(df_split.:dialogue_split, 10))
+```
+
+# Clean Text
+
+So, it's not ideal that we have punctuation in here. We don't want, for instance "blood" to be considered a different word than "blood." when we count words later. Same deal for uppercase and lowercase letters -- we want "something" to be the same as "Something". So we need to strip punctuation and lowercase everything.
+
+First, we can write a small little function to strip punctuation.
+
+```{julia}
+function strip_punc(x)
+    strip(x, [',', ';', '.', '?', '!'])
+end
+```
+
+And Julia already has a `lowercase()` function built in. Now, let's jam these on the end of the chain we already have. I'll also just go ahead an get rid of the " " argument in `split()` since that's the default:
+
+```{julia}
+df_split = @chain dialogue_complete begin
+    select(
+        :season,
+        :episode,
+        :line,
+        :dialogue => ByRow(x -> split(x)) => :dialogue_split
+    )
+    flatten(:dialogue_split)
+    transform(:dialogue_split => ByRow(lowercase) => :dialogue_split)
+    transform(:dialogue_split => ByRow(strip_specials) => :dialogue_stripped)
+end
+```
+
+Confirming that this worked:
+
+```{julia}
+show(df_split.:dialogue_stripped[1:10])
+```
+
+Splendid.
+
+# Remove Stop Words
+
+The next step is to get rid of stop words, because we don't really care about counting those. There's a list of stopwords in the `Languages.jl` package that we'll use
+
+```{julia}
+stops = stopwords(Languages.English())
+```
+
+Swell. Now that we have this, we can subset (filter in R terms) our dataset to include only rows with words not in the list of stop words.
+
+```{julia}
+dialogue_no_stops = subset(
+    df_split,
+    :dialogue_stripped => x -> .!in.(x, Ref(stops))
+    )
+```
+
+If you're not familiar with Julia, the `.` is a way to broadcast/vectorize operations, which mostly aren't vectorized by default. And to be completely honest, I'm not sure why I need to wrap our stopwords in `Ref()`, but the internet says I do and I assume this is some Julia equivalent of, like, tidyeval that I haven't gotten around to understanding yet. But regardless, this does what we want!
+
+# Getting the Top 20 Words
+
+We're almost there, fam. We've got a dataset in the format we want it in, and we've done some light cleaning. Now, let's count how often each word is used and select the top 20 most common. Again, we're going to chain some operations together.
+
+```{julia}
+top_20 = @chain dialogue_no_stops begin
+    groupby(:dialogue_stripped)
+    combine(nrow => :count)
+    sort(:count, rev = true)
+    first(20)
+end
+```
+
+I'm actually not going to explain the above because I think it's pretty intuitive if you've been following along so far and are familiar with either R or Python functions (the function names here are pretty descriptive, I think).
+
+# Plotting
+
+Ok, so, as much as I like Julia so far, plotting does feel difficult. I've mostly used `Makie` and its counterparts, and I think I'm almost starting to get a handle on them, but they definitely don't feel as intuitive to me as, say, `ggplot2`.
+
+Full transparency -- making this little plot took me more time than I wanted it to, and it's entirely due to labeling the y-axis ticks. So, uh, here's the code to make the plot, and just know that I don't fully understand why some options accept vectors while others want tuples.
+
+```{julia}
+lbls = "Rank " .* reverse(string.(1:20))
+
+barplot(
+    1:nrow(top_20),
+    reverse(top_20.count),
+    direction = :x,
+    bar_labels = reverse(top_20.:dialogue_stripped),
+    flip_labels_at = median(top_20.count),
+    axis = (
+        yticks = (1:20, lbls),
+        title = "Most Common Words in Stranger Things",
+        xlabel = "Times Said"
+    ),
+)
+```
+
+Et voila -- we've taken a dataframe with dialogue, tokenized it, cleaned it a little bit, and found the top 20 most common words. We could modify our list of stop words a little if we wanted to get rid of things like "oh", "okay", "uh", and whatnot, but I'm not going to bother with that here. I hope you learned as much from reading this as I did from writing it!
