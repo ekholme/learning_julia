@@ -12,7 +12,17 @@ jupyter: julia-1.7
 
 **NOTE TO SELF -- ADD TAGS TO YAML**
 
+In my quest to continue learning how to do things in Julia, I wanted to play around with last week's [#TidyTuesday dataset](https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-10-18), which was the dialogue from every episode of Stranger Things. In data-analysis-dabbling in Julia so far, I've more or less avoided strings. This has mostly been because I've been focusing on numerical topics (like maximum likelihood estimation), but also because working with strings can be a pain. That said, it felt like time to explore strings in Julia, and this dataset provided a good opportunity to practice.
+
+The goal of this analysis is going to be do something fairly straightforward -- I'm going to count the most-frequently used words in the series. But this will require learning some fundamental tools like tokenizing, pivoting/reshaping data, and cleaning text data, among others.
+
+As always, the point of this is to work through my own learning process. I'm certainly not claiming to be an expert, and if you are an expert and can recommend better approaches, I'd love to hear them!
+
+So let's get to it.
+
 # Setup and Examine Data
+
+First, let's load the packages we'll use and read the data in:
 
 ```{julia}
 using CSV #for reading CSVs
@@ -20,12 +30,7 @@ using DataFrames #dataframe utilities
 using Chain #chain macro, similar to R's pipe
 using Languages #for stopwords
 using CairoMakie #plotting
-```
 
-
-First, let's read the data in:
-
-```{julia}
 st_things_dialogue = CSV.read(download("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-10-18/stranger_things_all_dialogue.csv"), DataFrame);
 
 ```
@@ -64,6 +69,12 @@ Or, using our actual data:
 split(dialogue_complete.dialogue[1], " ")
 ```
 
+It's worth noting that, by default, `split()` will split on spaces, so we can just call the default function without the final argument as well:
+
+```{julia}
+split(dialogue_complete.dialogue[1])
+```
+
 So this gives us the first step of what we want to do in tokenizing the dialogue.
 
 Let's start putting this into a `chain`, which is similar to R's pipe concept. And apparently there are several different chains/pipes in Julia, but the `Chain.jl` package seems reasonable to me so let's just use that one.
@@ -76,7 +87,7 @@ df_split = @chain dialogue_complete begin
         :season,
         :episode,
         :line,
-        :dialogue => ByRow(x -> split(x, " ")) => :dialogue_split
+        :dialogue => ByRow(split) => :dialogue_split
     )
     end
 ```
@@ -99,7 +110,7 @@ df_split = @chain dialogue_complete begin
         :season,
         :episode,
         :line,
-        :dialogue => ByRow(x -> split(x, " ")) => :dialogue_split
+        :dialogue => ByRow(split) => :dialogue_split
     )
     flatten(:dialogue_split)
 end
@@ -123,7 +134,7 @@ function strip_punc(x)
 end
 ```
 
-And Julia already has a `lowercase()` function built in. Now, let's jam these on the end of the chain we already have. I'll also just go ahead an get rid of the " " argument in `split()` since that's the default:
+And Julia already has a `lowercase()` function built in. Now, let's jam these on the end of the chain we already have:
 
 ```{julia}
 df_split = @chain dialogue_complete begin
@@ -131,11 +142,11 @@ df_split = @chain dialogue_complete begin
         :season,
         :episode,
         :line,
-        :dialogue => ByRow(x -> split(x)) => :dialogue_split
+        :dialogue => ByRow(split) => :dialogue_split
     )
     flatten(:dialogue_split)
     transform(:dialogue_split => ByRow(lowercase) => :dialogue_split)
-    transform(:dialogue_split => ByRow(strip_specials) => :dialogue_stripped)
+    transform(:dialogue_split => ByRow(strip_punc) => :dialogue_stripped)
 end
 ```
 

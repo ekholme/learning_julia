@@ -72,25 +72,24 @@ dialogue_no_stops = subset(
     )
 
 #summarize by word
-top_100 = @chain dialogue_no_stops begin
+top_20 = @chain dialogue_no_stops begin
     groupby(:dialogue_stripped)
     combine(nrow => :count)
     sort(:count, rev = true)
-    first(100)
+    first(20)
 end
 
-#and make a bar chart
-nms = (:a, :b, :c)
-vls = [1, 2, 3]
-
-yy = NamedTuple{nms}(vls)
-
-#getting there with this -- need to make it a tuple
+lbls = "Rank " .* reverse(string.(1:20))
 
 barplot(
-    1:nrow(top_100),
-    reverse(top_100.count),
+    1:nrow(top_20),
+    reverse(top_20.count),
     direction = :x,
-    #bar_labels = :y,
-    #flip_labels_at = .5,
+    bar_labels = reverse(top_20.:dialogue_stripped),
+    flip_labels_at = median(top_20.count),
+    axis = (
+        yticks = (1:20, lbls),
+        title = "Most Common Words in Stranger Things",
+        xlabel = "Times Said"
+    ),
 )
