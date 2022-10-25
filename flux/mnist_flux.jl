@@ -2,7 +2,7 @@
 #as a tutorial
 
 #see also
-#https://fluxml.ai/tutorials/2021/02/07/convnet.html
+#https://fluxml.ai/tutorialposts/2021-02-07-convnet/
 using Flux
 using Flux: DataLoader
 using Flux: onehotbatch, onecold, crossentropy

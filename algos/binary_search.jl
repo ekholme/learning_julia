@@ -8,7 +8,7 @@ d = Normal(1, 2)
 s = rand(d, 10000)
 
 function bs_mean(s::Vector{Float64})
-    low = 0
+    low = minimum(s)
     high = maximum(s)
     guess = (low + high) / 2
     mn = mean(s)
