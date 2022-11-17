@@ -78,3 +78,4 @@ num_epochs = 10
 
 #ok so this works
 acc(mod(xs), ys_onehot)
+#note that the accuracy is of course going to be bad because we're using just straight-up random data
