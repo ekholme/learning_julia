@@ -5,13 +5,16 @@
 #https://fluxml.ai/tutorialposts/2021-02-07-convnet/
 using Flux
 using Flux: DataLoader
-using Flux: onehotbatch, onecold, crossentropy
+using Flux: onehotbatch, onecold, crossentropy, flatten
 using Flux: @epochs
 using Statistics
 using MLDatasets
+using CUDA
+using Random
 
 ENV["DATADEPS_ALWAYS_ACCEPT"] = true
 
+Random.seed!(0408)
 
 x_train, y_train = MLDatasets.MNIST(:train)[:]
 x_tst, y_tst = MLDatasets.MNIST(:test)[:]
@@ -54,4 +57,51 @@ model = Chain(
     GlobalMeanPool(),
     flatten, 
     Dense(32, 10),
-)
+    softmax
+) |> gpu
+
+#getting an initial set of predictions on the test data
+ŷ = onecold(model(x_train))
+
+#checking intial accuracy -- it should be bad
+mean(ŷ .== onecold(y_train))
+
+#set loss function
+my_loss(x, y) = Flux.Losses.crossentropy(model(x), y)
+
+#learning rate
+lr = .1
+
+#optimizer
+opt = Descent(lr)
+
+#parameters
+ps = Flux.params(model)
+
+
+#train in gpu
+nepochs = 10
+
+for epoch in 1:nepochs
+    for (xtrain_batch, ytrain_batch) in train_data
+        x, y = gpu(xtrain_batch), gpu(ytrain_batch)
+        gradients = gradient(() -> my_loss(x, y), ps)
+        Flux.Optimise.update!(opt, ps, gradients)
+    end
+end
+
+#look at accuracy now
+ŷ2 = onecold(model(x_train |> gpu))
+
+ŷ2 = cpu(ŷ2)
+
+mean(ŷ2 .== onecold(y_train))
+#boom
+
+#and let's get the test set accuracy
+y_pred = onecold(model(x_tst |> gpu))
+
+y_pred_cpu = cpu(y_pred)
+
+mean(y_pred_cpu .== onecold(y_tst))
+#hey that's pretty good!
