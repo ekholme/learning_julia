@@ -32,11 +32,7 @@ y = f(𝐗) + ϵ
     σ ~ Exponential(1)
     b ~ MvNormal(zeros(n_feat), 5 * I)
 
-    #calculate mu
-    # μ = α .+ x*b
-
-    # #likelihood
-    # return y ~ MvNormal(μ, σ^2 * I)
+    #likelihood
     for i ∈ eachindex(y)
         y[i] ~ Normal(α + x[i,:]' * b, σ)
     end
@@ -46,7 +42,7 @@ end
 model = linear_regression(𝐗, y)
 
 #sample
-chn = sample(model, NUTS(), 1000)
+chn = sample(model, NUTS(), MCMCThreads(), 1_000, 2)
 
 #plot posterior distributions
 plot(chn)
@@ -71,6 +67,7 @@ summarize(preds)
 y_1 = getindex(preds, "y[1]")
 
 #and to access the predicted values
+#this will have fitted values from both chains
 y_1.data
 
 #to get the avg predicted value
