@@ -2,6 +2,7 @@ using CSV
 using DataFrames
 using CairoMakie
 using Chain
+using Dates
 
 centenarians = CSV.read(download("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-05-30/centenarians.csv"), DataFrame)
 
@@ -72,8 +73,8 @@ f
 top_countries = @chain centenarians begin
     groupby(:place_of_death_or_residence)
     combine(nrow => :count)
-    sort(:count, rev = true)
-    first(5)
+    sort(:count)
+    last(5)
 end
 
 barplot(
@@ -87,4 +88,19 @@ barplot(
     bar_labels = :y,
     flip_labels_at = 10
 )
-#good enough, although the whole thing kinda needs to be flipped
+#good enough
+
+#let's also do some counts by birth decade
+transform!(
+    centenarians,
+    :birth_date => ByRow(x -> (Dates.value(Dates.Year(x)) ÷ 10) * 10) => :birth_decade
+    )
+
+decade_counts = @chain centenarians begin
+    groupby([:gender, :birth_decade])
+    combine(nrow => :count)
+    sort([:gender, :birth_decade])
+end
+
+show(decade_counts, allrows = true)
+#i'm not sure how interesting this actually is
