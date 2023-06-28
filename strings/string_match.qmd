@@ -1,0 +1,102 @@
+---
+title: "String Matching in Julia"
+description: |
+  Matching strings and benchmarking performance
+date: 2023-06-09
+format:
+  html:
+    code-fold: false
+jupyter: julia-1.9
+---
+
+Yesterday, I stumbled across this [couple-month old blog post from Josiah Parry](https://josiahparry.com/posts/2023-04-13-counting-chars/) walking through creating R, Rust, and C++ functions to compare multiple candidate strings to a reference string (his real-world application for this is geohashing, but in the demo he uses arbitrary strings).
+
+Those languages are cool and all, but what about :star: *Julia* :star:? The gist of his blog is that Rust is super fast. And since the whole, like raison d'etre of Julia is that it's fast, I figured I'd write a version of this in Julia as well. I'm still new-ish to Julia, so I'd love if any experts could tell me how to optimize this even further.
+
+# Load Packages and Generate Data
+
+For this, we just need the `Random` package to set a seed and sample our strings as well as the `BenchmarkTools` package to benchmark the function performance.
+
+```{julia}
+using Random
+using BenchmarkTools
+
+Random.seed!(0408)
+
+#function to generate some strings
+function make_strings(n::Int)
+    v = Vector{String}(undef, n)
+
+    letters = "abcde"
+    numbers = "12345"
+
+    for i ∈ eachindex(v)
+        x = randstring(letters, 4)
+        y = randstring(numbers, 3)
+        v[i] = x * y
+    end
+    return v
+end
+```
+
+This will make a vector of length `n` where each element is a 7-character string. In each of these strings, the first 4 characters will be sampled (with replacement) from `"abcde"`, and the last 3 characters will be sampled (with replacement) from `"12345"`.
+
+Next we'll set `n` to 100,000 and generate our strings. I'll also make an arbitrary reference string to compare the candidate strings against. Note that we're not benchmarking any of this stuff -- just the comparisions that will come later.
+
+```{julia}
+n = 100_000
+
+#returns a vector of 100k strings
+x = make_strings(n);
+
+ref = "aade124" #making a reference string to compare against
+
+```
+
+# Write Comparison Functions
+
+So now we want to compare each element of `x` to `ref`. The goal is count how many characters match until we hit the first characters that don't match. For example, if we're comparing `"abcd123"` to `"abde123"`, the result would be `2`, since the first two characters (`ab` vs `ab`) match in each, but the third characters (`c` vs `d`) don't.
+
+My first step here is to write a function that compares 1 string to 1 string -- that is', I'm not worrying about the fact that I want to do this for all the of the elements in `x` yet -- I just want to do it for 1 element.
+
+```{julia}
+function compare_strings(x::String, y::String)
+    s = 0
+    for i ∈ eachindex(x)
+        x[i] != y[i] ? break : s += 1
+    end
+    return s
+end
+```
+
+This will:
+1. Create a counter, `s` (for sum) and set it equal to 0;
+2. For each index `i` (position) in x -- recall that x and y will have the same length -- compare `x[i]` and `y[i]`;
+3. If they're not equal, `break` the loop and return `s`;
+4. If they are equal, increment `s` by one and keep going
+
+We can check that this works by using the previous example strings:
+
+```{julia}
+compare_strings("abcd123", "abde123")
+```
+
+Now we want to write a version of this function that accepts a vector of strings and compares each element of that vector to the reference string. The cool thing about Julia is that its [multiple dispatch](https://docs.julialang.org/en/v1/manual/methods) feature allows us to define another `compare_strings()` function that accepts different types of arguments.
+
+So we can write the following and it's perfectly acceptable and, honestly, way better IMO than how you might have to handle this in `R` or `python`
+
+```{julia}
+function compare_strings(x::Vector{String}, y::String)
+    return [compare_strings(i, y) for i in x]
+end
+```
+
+Notice that the new function has the same name (`compare_strings()`) but its `x` argument is a vector of strings rather than a single string. Then, inside the function, we just call our other method that requires `x` to be a single string. We do these calls inside of a list comprehension to iterate over all of the elements in `x`.
+
+# Benchmark
+
+TODO
+
+```{julia}
+bm = @benchmark compare_strings(x, ref)
+```
