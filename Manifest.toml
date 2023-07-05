@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "971db0185b16c6f3f052cbe17da0ddd3a8ed2eef"
+project_hash = "01e414e3ab42bc31ce4e85ec23ae4b3a8c8c7b92"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -1555,6 +1555,12 @@ deps = ["OffsetArrays"]
 git-tree-sha1 = "03a7a85b76381a3d04c7a1656039197e70eda03d"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.11"
+
+[[deps.PalmerPenguins]]
+deps = ["CSV", "DataDeps"]
+git-tree-sha1 = "e7c581b0e29f7d35f47927d65d4965b413c10d90"
+uuid = "8b842266-38fa-440a-9b57-31493939ab85"
+version = "0.1.4"
 
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Pkg"]
