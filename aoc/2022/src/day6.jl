@@ -2,43 +2,34 @@ f = open("./aoc/2022/data/day6.txt")
 
 data = readlines(f)[1]
 
-iter = 4:length(data)
-
-res = []
-for i in iter
-    y = occursin(data[i], data[i-1:-1:i-3])
-    push!(res, y)
-end
-
-#check for 4 falses in a row
-marker_ind = 0
-for i in eachindex(res)
-    if sum(res[i:i+3]) == 0
-        global marker_ind = i
-        break
+# assign character counts to a dict
+function count_chars(x::String)
+    ret = Dict{Char,Int}()
+    for i in eachindex(x)
+        z = x[i]
+        if (haskey(ret, z))
+            ret[z] += 1
+        else
+            ret[z] = 1
+        end
     end
-    println(i)
+    return ret
 end
 
-num_chars = marker_ind + 4
-
-#part 2
-
-iter2 = 14:length(data)
-
-res2 = []
-
-for i in iter2
-    y = occursin(data[i], data[i:-1:i-13])
-    push!(res2, y)
-end
-
-marker2 = 0
-for i in eachindex(res2)
-    if sum(res2[i:i+13]) == 0
-        global marker2 = i
-        break
+#wrap the above
+function check_marker(x::String, step::Int)
+    r = step:length(x)
+    size = step - 1
+    for i ∈ r
+        ss = x[i:-1:i-size]
+        tmp = count_chars(ss)
+        if maximum(values(tmp)) == 1
+            return i
+        end
     end
-    println(i)
+    return "no marker found"
 end
-#this isn't working -- need to think on this more
+
+p1 = check_marker(data, 4)
+
+p2 = check_marker(data, 14)
